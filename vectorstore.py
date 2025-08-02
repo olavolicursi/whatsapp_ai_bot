@@ -1,9 +1,9 @@
-import os 
+import os
 import shutil
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import Chroma
-from langchain_community.embeddings import OpenAIEmbeddings
+from langchain_chroma import Chroma
+from langchain_openai import OpenAIEmbeddings
 from config import RAG_FILES_DIR, VECTOR_STORE_PATH
 
 def load_documents():
@@ -27,17 +27,18 @@ def load_documents():
 
 def get_vectorstore():
     docs = load_documents()
+    embeddings = OpenAIEmbeddings()
     if docs:
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
         splits = text_splitter.split_documents(docs)
         return Chroma.from_documents(
             documents=splits,
-            embedding=OpenAIEmbeddings(),
+            embedding=embeddings,
             persist_directory=VECTOR_STORE_PATH
         )
     return Chroma(
-        embedding=OpenAIEmbeddings(),
-        persist_directory=VECTOR_STORE_PATH
+        persist_directory=VECTOR_STORE_PATH,
+        embedding_function=embeddings
     )
 
 
