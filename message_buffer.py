@@ -26,4 +26,30 @@ async def buffer_message(chat_id: str, message: str):
         debounce_tasks[chat_id].cancel()
         log(f'Tarefa de debounce cancelada para {chat_id}')
 
-    debounce_tasks[chat_id] = asyncio.create_task(...)
+    debounce_tasks[chat_id] = asyncio.create_task(handle_debounce(chat_id))
+
+async def handle_debounce(chat_id: str):
+    try:
+        log(f'Iniciando debounce para {chat_id}')
+        await asyncio.sleep(float(DEBOUNCE_SECONDS))
+
+        buffer_key = f'{chat_id}{BUFFER_KEY_SUFIX}'
+        messages = await redis_client.lrange(buffer_key, 0, -1)
+        
+
+        full_message = ' '.join(messages).strip()
+        if full_message:
+            log(f'Enviando mensagem completa para {chat_id}: {full_message}')
+            ai_response = conversational_rag_chain.invoke(
+                input={'input': full_message},
+                config={'configurable': {'session_id': chat_id}},
+            )['answer']
+            
+            send_whatsapp_message(
+                number=chat_id, 
+                text=ai_response
+            )
+
+        await redis_client.delete(buffer_key)
+    except asyncio.CancelledError:
+        log(f'Tarefa de debounce cancelada para {chat_id}')
